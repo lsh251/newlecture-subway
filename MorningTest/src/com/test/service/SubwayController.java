@@ -15,12 +15,12 @@ public class SubwayController {
 			switch(menu) {
 			// 탑승 -> 탑승가능현황 안내 + 차량호수 선택 + 목적지 선택
 			case 1: 
-				ss.탑승();
+				ss.join();
 				break;
 			
 			// 상세보기 -> 열차현황 안내(탑승객의 목적지 표시) 
 			case 2:
-				ss.열차현황안내();
+				ss.status();
 				break;
 			
 			// 이동 -> 차량이동 + 자동하차 안내 
@@ -32,7 +32,6 @@ public class SubwayController {
 			case 9:
 				System.out.println("열차운행을 종료합니다.");
 				break EXIT;
-				
 			default:
 				System.out.println("잘못 클릭함?");
 			}

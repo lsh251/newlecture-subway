@@ -2,16 +2,27 @@ package com.test.service;
 
 import java.util.Scanner;
 
+/*
+ * Newlec SubwayService이다.
+ * 이동할 수 있는 역이 고정되어 있다.
+ * 현재는 합정 -> 홍대입구 방향으로만 운행한다. 
+ * 최대 16명이 이용할 수 있고, 하차한 승객이 있더라도 이용 불가하다.
+ * 
+ * Train과 Composition 관계이다.
+ * 지하철 운행을 위해서 SubwayService 객체가 생성될 때 바로 준비되어야 하기 때문이다.
+ * 
+ * Passenger와 Aggregation 관계이다.
+ * 지하철 서비스 준비 여부와 관계 없이 승객이 원할 때 이용하기 때문이다.
+ * join() 할 때마다 Passenger 객체가 생성된다.
+ */
+
 public class SubwayService {
 	private String[] stations;
 	private int stationIndex;
-	private int destination;
-	// SubwayService가 지하철이라면, 사실상 역을 돌아다니는 또 하나의 승객느낌인데
-	// 그리고 역은 유일하게 상수 아님?
+	private int destinationIndex;
 	
 	private Train[] trains;
 	private int trainIndex;
-	// Composition 관계라 생각한다.
 	
 	private Passenger[] passengers; 
 	private int passengerIndex; // 0~15
@@ -19,15 +30,12 @@ public class SubwayService {
 	// SubwayService와 Aggregation 관계일 것 같다.
 	// 필요할 때마다 추가될거야
 	
-	
 	public SubwayService() {
 		// SubwayService 객체가 생성되자마자 station 배열은 5개의 역으로 확정한다.
-		// 그리고 가장 첫 역은 항상 합정이니 stationIndex를 0으로 초기화한다.
+		// 가장 첫 역은 항상 합정이니 stationIndex를 0으로 초기화한다.
 		stations = new String[]{"합정", "홍대입구", "신촌", "이대", "아현"}; 
 		stationIndex = 0;
-		destination = -1;
-		// 스테이션은 인덱스별로 역이 달라지지 curStation를 int 인덱스로 이용할 수 있겠다.
-		// 이동메소드에서 curStation이 바뀌겠군.
+		destinationIndex = -1;
 		
 		passengers = new Passenger[16]; // 최대 4*4 탑승이 가능하니까
 		passengerIndex = -1; // 첫 승객의 인덱스가 0이 될 수 있도록
@@ -54,33 +62,33 @@ public class SubwayService {
 		return menu = scan.nextInt();
 	}
 
-	public void 탑승() {
+	public void join() {
 		Scanner scan = new Scanner(System.in);
 		System.out.println("---- 탑승가능 현황 ----");
-		// 이것도 for문 4회로 가능할 것 같다.
 		// 만약 trains[i].getCapacity가 4 미만이면 가능
-		for(int i=0; i<4; i++) 
-			System.out.printf("%d호차 : %b\n", i+1, trains[i].isPossibility());
+		String yes = ""; 
+		for(int i=0; i<4; i++) {
+			if(trains[i].isPossibility())
+				yes = "탑승 가능";
+			else
+				yes = "탑승 불가능";
+			System.out.printf("%d호차 : %s\n", i+1, yes);
+		}
 		
 		//ss.차량호수선택();
 		do {
 			System.out.println("어느 열차에 탑승하시겠습니까?");
 			System.out.println("1호차 2호차 3호차 4호차");
 			System.out.print(">");
-			trainIndex = scan.nextInt();
+			trainIndex = scan.nextInt()-1;
 			
 			// 만약 해당 차량이 만석이라면 '탑승이 불가능합니다.' 안내 후 재선택
 			// 만석이 아니라면 capacity를 올려줘야겠다.
-			if(!trains[trainIndex-1].isPossibility())
+			if(!trains[trainIndex].isPossibility())
 				System.out.println("탑승이 불가능합니다.");
-		} while(!trains[trainIndex-1].isPossibility());
+		} while(!trains[trainIndex].isPossibility());
 		
-		// 탑승이 가능해서 do-while을 빠져나왔다면, 정원을 올려줘야하는데
-		// 아.. 이건 do-while에서 처리해야하는구나
-		// 이 메소드에서 정원이 찾을 때 flase로 닫고 나오기 때문에 
-		// do-while에서 빠져나올 수 없어
-		trains[trainIndex-1].addCapacity();
-		
+		trains[trainIndex].addCapacity();
 		
 		//ss.목적지선택();
 		//목적지를 선택하면 해당 목적지가 '[합정]' 형태로 저장되어야한다. 
@@ -100,92 +108,73 @@ public class SubwayService {
 				continue;
 			// 합정이 1이야. 1,2,3,4,5 // 홍대는 2란 말이지
 			System.out.printf("%d.", i+2);
-			System.out.printf("%s", stations[i+1]);
+			System.out.printf("%s ", stations[i+1]);
 			if(i==3)
 				System.out.println();
 				
 		}
 		System.out.print(">");
-		// 
-		destination = scan.nextInt();
+		destinationIndex = scan.nextInt()-1;
+		
 		// 탑승이 가능할 때 Passenger 객체가 생성돼야해
 		// passenger생성()
 		passengerIndex++;
-		passengers[passengerIndex] = new Passenger(trainIndex, destination-1);
+		passengers[passengerIndex] = new Passenger(trainIndex, destinationIndex);
 	}
 
-	public void 열차현황안내() {
+	public void status() {
 		// n호차에 몇 명 탔고, 그 사람의 목적지는 어디인지 보여주는 메소드
-		
 		System.out.println("---- 열차 현황 ----");
+		/*
+		 * 많이 까다로운 메소드라 생각한다.
+		 * 승객은 최대 16명인데, passengerIndex와 상관없이 각기 다른 차량에 탑승한다.
+		 * 그렇다면, 차량별로 16번을 검사해야 하는 것으로..?
+		 * 이번에도 각 차량마다 passengerIndex+1 만큼 반복하고 continue 해야겠다.
+		 * 이중for문으로 간다.
+		 */
 		
-		// 일단 승객이 있다면 그 승객의 목적지를 보여주자
-//		for(int i=0; i<passengerIndex+1; i++) {
-//			System.out.printf("%d번승객 : %d호차, [%s]\n", i, passengers[i].getTrainIndex(), stations[passengers[i].getDestination()]);
-//		}
-		
-		// 만약에.. 차량별로 목적지 보려주려면 아래처럼 시작하면돼
-		// 그리고 16번 도는데 null이 아닐 경우 출력하면 되잖아
-		for(int j=0; j<4; j++) { // 차량 호수만큼 4번 복한다.
+		for(int j=0; j<4; j++) {
 			System.out.printf("%d호차 : ", j+1);
-			if(trains[j].getCapacity()>0) // 차량에 탑승한 승객이 있다면 해당 승객의 목적지를 보여준다.
-				for(int i=0; i<16; i++) { // 최대 16번 반복한다.
-					if(passengers[i] == null) // 승객 객체가 없을 경우 break 한다
-						break;
-					else if(passengers[i].getTrainIndex()==j+1)
-						System.out.printf("[%s]", stations[passengers[i].getDestination()]);
-				}
+			
+			for(int i=0; i<passengerIndex+1; i++)
+				if(passengers[i]==null)
+					continue;
+				else if(passengers[i].getTrainIndex() == j) // 승객의 탑승차량이 j와 일치하다면 목적지를 보여준다.
+					System.out.printf("[%s]", stations[passengers[i].getDestination()]);
+			
 			System.out.println();
 		}
-		/*
-		for(int j=0; j<4; j++) { // 차량 호수만큼 4번 복한다.
-			System.out.printf("%d호차 : ", j+1);
-			if(trains[j].getCapacity()>0) // 차량에 탑승한 승객이 있다면 해당 승객의 목적지를 보여준다.
-				for(int i=0; i<trains[j].getCapacity(); i++) { // trains[j].getCapacity() 만큼 반복한다.
-//					System.out.printf("[%s]", stations[passengers[i] destination]);
-					// 근데 여기에 passengerIndex 0, 15번 승객이 타고있을 수도 있잖아.
-					// 어떻게 하려고? ㅋㅋㅋㅋ 설마 승객이 한 명이라도 있으면 16번 검사함? 인덱스범위오류남 ㅡㅡ
-				}
-		}
-		*/
-		
+
 	}
 
 	public void move() {
-			
-		// 다음역으로 이동한다.
-		// index가 ++ 된다는뜻이지
-		// 물론 역방향일때는 수정해야한다.
+		// 1. 다음역으로 이동한다. stationIndex++;
+		// 현재 마지막 역인 경우에는 return한다.
 		if(stationIndex==4) {
-			System.out.println("다음역은 없어");
+			System.out.println("종점입니다.");
 			return;
 		}
 		stationIndex++;
 		
-		//ss.자동하차안내();
-		// 자동하차 안     내가 필요한 경우 먼저 안내한다.
-		// 자동하차하는건 승객이야. 그럼 승객을 검사해서 내리게 해야돼
-		// stationIndex가 2면, destination-1이 2인 승객은 내려야해
-		// 승각은 최대 16명이니 16번 검사를 해야겠지만 continue하거나 break 해야할 수도 있겠다
+		// 2. ss.자동하차안내();
 		// passengerIndex+1 만큽 반복한다.
 		int count = 0;
 		for(int i=0; i<passengerIndex+1; i++) {
-			if(passengers[i].getDestination() == stationIndex)
+			if(passengers[i]==null)
+				continue;
+			else if(passengers[i].getDestination() == stationIndex) {
+				passengers[i] = null; // 승객이 하차하면 null을 저장한다.
 				count++;
-				
-//			if(passengers[i].getDestination()-1 == stationIndex);
+			}
 		}
 		
+		// 하차한 승객이 있다면 안내한다.
 		if(count>0)
 			System.out.printf("%d명 하차함\n", count);
 		
-		// 하차할 때 승객을 null로 만들어주자
-		
-//		System.out.println(stationIndex);
-//		System.out.println(passengers[0].getDestination());
 	}
-	
 }
+
  
 
 
