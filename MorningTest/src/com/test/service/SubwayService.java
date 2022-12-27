@@ -21,14 +21,11 @@ public class SubwayService {
 	private int stationIndex;
 	private int destinationIndex;
 	
+	private Passenger[] passengers; 
+	private int passengerIndex;
+	
 	private Train[] trains;
 	private int trainIndex;
-	
-	private Passenger[] passengers; 
-	private int passengerIndex; // 0~15
-	// private 탑승객[] 탑승객들;
-	// SubwayService와 Aggregation 관계일 것 같다.
-	// 필요할 때마다 추가될거야
 	
 	public SubwayService() {
 		// SubwayService 객체가 생성되자마자 station 배열은 5개의 역으로 확정한다.
@@ -37,24 +34,25 @@ public class SubwayService {
 		stationIndex = 0;
 		destinationIndex = -1;
 		
-		passengers = new Passenger[16]; // 최대 4*4 탑승이 가능하니까
-		passengerIndex = -1; // 첫 승객의 인덱스가 0이 될 수 있도록
-		
 		trains = new Train[4];
 		for(int i=0; i<4; i++)
 			trains[i] = new Train();
 		trainIndex = 0;
+		
+		passengers = new Passenger[16]; // 최대 4*4 탑승이 가능하니까
+		passengerIndex = -1; // 첫 승객의 인덱스가 0이 될 수 있도록
 	}
 
 	public int inputMenu() {
 		int menu;
+		String station = stations[stationIndex];
 		
 		Scanner scan = new Scanner(System.in);
 
 		//현재역안내(); 따로 메소드 만들 수도 있음
 		System.out.println("=================================");
 		// 가장 처음에만 합정이고, 그 이후에는 현재 역으로 바뀌어야한다.
-		System.out.println("현재역은 " + stations[stationIndex] + "입니다.");
+		System.out.println("현재역은 " + station + "입니다.");
 		System.out.println("=================================");
 		System.out.println("메뉴를 선택하세요.");
 		System.out.println("1.탑승 2.상세보기 3.이동 9.종료");
@@ -64,11 +62,14 @@ public class SubwayService {
 
 	public void join() {
 		Scanner scan = new Scanner(System.in);
+		boolean boardingPossibility;
+		
 		System.out.println("---- 탑승가능 현황 ----");
 		// 만약 trains[i].getCapacity가 4 미만이면 가능
 		String yes = ""; 
 		for(int i=0; i<4; i++) {
-			if(trains[i].isPossibility())
+			boardingPossibility = trains[i].isBoardingPossibility();
+			if(boardingPossibility)
 				yes = "탑승 가능";
 			else
 				yes = "탑승 불가능";
@@ -83,12 +84,13 @@ public class SubwayService {
 			trainIndex = scan.nextInt()-1;
 			
 			// 만약 해당 차량이 만석이라면 '탑승이 불가능합니다.' 안내 후 재선택
-			// 만석이 아니라면 capacity를 올려줘야겠다.
-			if(!trains[trainIndex].isPossibility())
+			boardingPossibility = trains[trainIndex].isBoardingPossibility();
+			if(!boardingPossibility)
 				System.out.println("탑승이 불가능합니다.");
-		} while(!trains[trainIndex].isPossibility());
+			
+		} while(!boardingPossibility);
 		
-		trains[trainIndex].addCapacity();
+		trains[trainIndex].addCount();
 		
 		//ss.목적지선택();
 		//목적지를 선택하면 해당 목적지가 '[합정]' 형태로 저장되어야한다. 
@@ -96,19 +98,12 @@ public class SubwayService {
 		// 현재의 상황에 따라 목적지 선택지가 달라져야함
 		// 일단 최대 4번 반복한다.
 		for(int i=0; i<4; i++) {
-			// 0, 1, 2, 3
-			// 4번 반복할건데, i에 스테이션을 집어 넣으면 안 되나 ㅋㅋ
-			// 근데 저기는 건들이면 안 되니까 보정하는 방식으로 하자
-			// stationIndex보다 ~하면 continue 한다. // 0, 1, 2, 3, 4
-			// stationIndex가 0이라면 1부터 4번 해야해
-			// stationIndex가 1이라면 2부터 3번 해야해
-			// 지금이 신촌이면 이대랑 아현만 보여줘야한단 말이야.
-			// 
 			if(i<stationIndex)
 				continue;
-			// 합정이 1이야. 1,2,3,4,5 // 홍대는 2란 말이지
+			
 			System.out.printf("%d.", i+2);
-			System.out.printf("%s ", stations[i+1]);
+			String station = stations[i+1];
+			System.out.printf("%s ", station);
 			if(i==3)
 				System.out.println();
 				
@@ -123,24 +118,20 @@ public class SubwayService {
 	}
 
 	public void status() {
-		// n호차에 몇 명 탔고, 그 사람의 목적지는 어디인지 보여주는 메소드
 		System.out.println("---- 열차 현황 ----");
-		/*
-		 * 많이 까다로운 메소드라 생각한다.
-		 * 승객은 최대 16명인데, passengerIndex와 상관없이 각기 다른 차량에 탑승한다.
-		 * 그렇다면, 차량별로 16번을 검사해야 하는 것으로..?
-		 * 이번에도 각 차량마다 passengerIndex+1 만큼 반복하고 continue 해야겠다.
-		 * 이중for문으로 간다.
-		 */
 		
 		for(int j=0; j<4; j++) {
 			System.out.printf("%d호차 : ", j+1);
 			
-			for(int i=0; i<passengerIndex+1; i++)
+			for(int i=0; i<passengerIndex+1; i++) {
+				
 				if(passengers[i]==null)
 					continue;
-				else if(passengers[i].getTrainIndex() == j) // 승객의 탑승차량이 j와 일치하다면 목적지를 보여준다.
-					System.out.printf("[%s]", stations[passengers[i].getDestination()]);
+				else if(passengers[i].getTrainIndex() == j) { // 승객의 탑승차량이 j와 일치하다면 목적지를 보여준다.
+					String station = stations[passengers[i].getDestination()];
+					System.out.printf("[%s]", station);
+				}
+			}
 			
 			System.out.println();
 		}
@@ -160,6 +151,7 @@ public class SubwayService {
 		// passengerIndex+1 만큽 반복한다.
 		int count = 0;
 		for(int i=0; i<passengerIndex+1; i++) {
+			
 			if(passengers[i]==null)
 				continue;
 			else if(passengers[i].getDestination() == stationIndex) {
